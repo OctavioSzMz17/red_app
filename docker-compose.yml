@@ -1,0 +1,134 @@
+services:
+
+  # -------------------------------------------------------
+  # App — Laravel (Nginx + PHP-FPM en un solo contenedor)
+  # -------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app
+    image: laravel-app:local
+    container_name: laravel_app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    environment:
+      APP_ENV: "${APP_ENV:-local}"
+      APP_KEY: "${APP_KEY}"
+      APP_DEBUG: "${APP_DEBUG:-true}"
+      APP_URL: "${APP_URL:-http://localhost:8080}"
+      # DB — usa Neon o el pgsql local según el .env
+      DB_CONNECTION: "${DB_CONNECTION:-pgsql}"
+      DB_HOST: "${DB_HOST}"
+      DB_PORT: "${DB_PORT:-5432}"
+      DB_DATABASE: "${DB_DATABASE}"
+      DB_USERNAME: "${DB_USERNAME}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      DB_SSLMODE: "${DB_SSLMODE:-prefer}"
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-null}"
+      # Queue & cache
+      QUEUE_CONNECTION: "${QUEUE_CONNECTION:-database}"
+      CACHE_STORE: "${CACHE_STORE:-database}"
+      # Mail
+      MAIL_MAILER: "${MAIL_MAILER:-smtp}"
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_FROM_ADDRESS: "${MAIL_FROM_ADDRESS:-hello@example.com}"
+      MAIL_FROM_NAME: "${APP_NAME:-Laravel}"
+    volumes:
+      - .:/var/www/html
+      - /var/www/html/vendor          # evita sobreescribir vendor del container
+      - /var/www/html/node_modules    # idem node_modules
+      - storage_data:/var/www/html/storage/app
+      - logs_data:/var/www/html/storage/logs
+    networks:
+      - laravel
+    depends_on:
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  # -------------------------------------------------------
+  # Queue Worker
+  # -------------------------------------------------------
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app
+    image: laravel-app:local
+    container_name: laravel_queue
+    restart: unless-stopped
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=90"]
+    environment:
+      APP_ENV: "${APP_ENV:-local}"
+      APP_KEY: "${APP_KEY}"
+      DB_CONNECTION: "${DB_CONNECTION:-pgsql}"
+      DB_HOST: "${DB_HOST}"
+      DB_PORT: "${DB_PORT:-5432}"
+      DB_DATABASE: "${DB_DATABASE}"
+      DB_USERNAME: "${DB_USERNAME}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      DB_SSLMODE: "${DB_SSLMODE:-prefer}"
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: "${QUEUE_CONNECTION:-database}"
+      CACHE_STORE: "${CACHE_STORE:-database}"
+    volumes:
+      - .:/var/www/html
+      - /var/www/html/vendor
+    networks:
+      - laravel
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # -------------------------------------------------------
+  # Redis
+  # -------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: laravel_redis
+    restart: unless-stopped
+    ports:
+      - "${FORWARD_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - laravel
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------
+  # Mailpit — captura de emails en dev
+  # -------------------------------------------------------
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: laravel_mailpit
+    restart: unless-stopped
+    ports:
+      - "${FORWARD_MAILPIT_PORT:-1025}:1025"
+      - "${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025"
+    networks:
+      - laravel
+
+networks:
+  laravel:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: "1400"
+
+volumes:
+  redis_data:
+    driver: local
+  storage_data:
+    driver: local
+  logs_data:
+    driver: local
