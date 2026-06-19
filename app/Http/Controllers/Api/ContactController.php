@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ContactResource;
 use App\Models\Contact;
 use Illuminate\Http\Request;
 
@@ -16,8 +17,8 @@ class ContactController extends Controller
         $contacts = Contact::with('images')->get();
         return response()->json([
             'success' => true,
-            'count' => $contacts->count(),
-            'data' => $contacts
+            'count'   => $contacts->count(),
+            'data'    => ContactResource::collection($contacts),
         ], 200);
     }
 
@@ -30,28 +31,28 @@ class ContactController extends Controller
             'nombre' => [
                 'required',
                 'string',
-                'max:50', // Límite de 50 caracteres
-                'regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/u' // Solo admite letras y espacios
+                'max:50',
+                'regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/u'
             ],
             'numero' => [
                 'required',
                 'string',
-                'max:15', // Límite para número telefónico
-                'regex:/^[0-9]+$/' // Solo admite números (dígitos)
+                'max:15',
+                'regex:/^[0-9]+$/'
             ],
             'usuario' => [
                 'required',
                 'string',
                 'max:50',
-                'alpha_num', // Solo caracteres alfanuméricos seguros
-                'unique:contacts,usuario' // Evita que se repitan usuarios
+                'alpha_num',
+                'unique:contacts,usuario'
             ],
             'contrasena' => 'required|string|min:6|max:100',
             'correo' => [
                 'required',
-                'email', // Cumplimiento de normas de correo RFC
+                'email',
                 'max:100',
-                'unique:contacts,correo' // Evita correos duplicados
+                'unique:contacts,correo'
             ],
         ]);
 
@@ -60,7 +61,7 @@ class ContactController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Contacto creado exitosamente',
-            'data' => $contact
+            'data'    => new ContactResource($contact),
         ], 201);
     }
 
@@ -72,7 +73,7 @@ class ContactController extends Controller
         $contact->load('images');
         return response()->json([
             'success' => true,
-            'data' => $contact
+            'data'    => new ContactResource($contact),
         ], 200);
     }
 
@@ -119,7 +120,7 @@ class ContactController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Contacto actualizado exitosamente',
-            'data' => $contact
+            'data'    => new ContactResource($contact->load('images')),
         ], 200);
     }
 
@@ -132,7 +133,7 @@ class ContactController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Contacto eliminado exitosamente'
+            'message' => 'Contacto eliminado exitosamente',
         ], 200);
     }
 }
