@@ -9,3 +9,9 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::apiResource('contacts', ContactController::class);
+
+Route::get('/users', function () {
+    return App\Http\Resources\UserResource::collection(
+        App\Models\User::with('images')->get()
+    );
+});
