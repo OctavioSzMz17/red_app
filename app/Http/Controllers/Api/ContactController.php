@@ -13,7 +13,7 @@ class ContactController extends Controller
      */
     public function index()
     {
-        $contacts = Contact::all();
+        $contacts = Contact::with('images')->get();
         return response()->json([
             'success' => true,
             'count' => $contacts->count(),
@@ -69,6 +69,7 @@ class ContactController extends Controller
      */
     public function show(Contact $contact)
     {
+        $contact->load('images');
         return response()->json([
             'success' => true,
             'data' => $contact
