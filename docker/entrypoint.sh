@@ -1,10 +1,13 @@
 #!/bin/sh
 # =============================================================
 # entrypoint.sh — Arranca Nginx + PHP-FPM directamente
-# Las migraciones se corren manualmente:
-#   docker compose exec app php artisan migrate
+# Las migraciones se corren automáticamente en cada arranque (idempotente:
+# Laravel solo aplica las que falten según la tabla "migrations" de cada BD).
 # =============================================================
 set -e
+
+echo "==> Running database migrations..."
+php /var/www/html/artisan migrate --force
 
 echo "==> Linking public storage..."
 rm -rf /var/www/html/public/storage
